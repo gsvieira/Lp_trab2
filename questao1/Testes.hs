@@ -78,4 +78,40 @@ prog3 = Prog (SBlock [SAss (Ident "x") (EInt 1),
 
 -}
 
+--------------------nossas mudanças--------------------------------------------
+
+testCase3 = executeP [] prog4 == [("x", 1), ("soma", 1), ("c", 0)]
+
+prog4 =
+  Prog
+    ( SBlock
+        [ SAss (Ident "x") (EInt 1),
+          SAss (Ident "soma") (EInt 0),
+          SAss (Ident "c") (EInt 10),
+          SWhile
+            (EVar (Ident "c"))
+            ( SBlock
+                [ SAss (Ident "soma") (EAdd (EVar (Ident "soma")) (EVar (Ident "c"))),
+                  SAss (Ident "c") (ESub (EVar (Ident "c")) (EInt 1))
+                ]
+            )
+        ]
+    )
+
+{- prog1
+
+{
+  x = 1;
+  soma = 0;
+  c = 10;
+  while (c)
+  {
+    soma = soma + c;
+    c = c - 1;
+  }
+
+}
+
+-}
+
 
