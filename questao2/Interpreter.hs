@@ -6,13 +6,13 @@ import Prelude hiding (lookup)
 
 executeP :: RContext -> Program  -> RContext
 executeP context (Prog stm) = execute context stm
-   
+
 execute :: RContext -> Stm -> RContext
 execute context x = case x of
    SAss id exp -> update context (getStr id) (eval context exp)
    SBlock [] -> context
-   SBlock (s:stms) -> execute (execute context s) (SBlock stms) 
-   SWhile exp stm -> if ( i(eval context exp) /= 0) 
+   SBlock (s:stms) -> execute (execute context s) (SBlock stms)
+   SWhile exp stm -> if i(eval context exp) /= 0
                      then execute (execute context stm) (SWhile exp stm)
                      else context
 
@@ -22,10 +22,10 @@ data Valor   = ValorStr String |
                ValorBool Bool
 -- note que ja foi adicionado um novo contrutor de tipo para valor booleano
 
-s :: Valor -> String             
+s :: Valor -> String
 s (ValorStr str) = str
 i :: Valor -> Integer
-i (ValorInt vint) = vint 
+i (ValorInt vint) = vint
 -- a funcao "b" abaixo recupera o valor booleano dentro de um valor
 b :: Valor -> Bool
 b (ValorBool vbool) = vbool
@@ -45,7 +45,7 @@ instance Eq Valor where
 
 -- note que a funcao eval retorna um Valor             
 eval :: RContext -> Exp -> Valor
-eval context x = case x of 
+eval context x = case x of
       EAdd exp0 exp -> ValorInt ( i(eval context exp0) + i (eval context exp))
       ESub exp0 exp -> ValorInt ( i(eval context exp0) - i (eval context exp))
       EMul exp0 exp -> ValorInt ( i(eval context exp0) * i (eval context exp))
@@ -63,9 +63,9 @@ eval context x = case x of
       -- adicione abaixo um padrao e comportamento associado ao literal true
       ETrue -> ValorBool True
       -- adicione abaixo um padrao e comportamento associado ao literal false
-      EFalse -> ValorBool False 
+      EFalse -> ValorBool False
 
-      
+
 type RContext = [(String,Valor)]
 
 getStr :: Ident -> String
