@@ -10,7 +10,7 @@ type ErrorMessage = String
    mas a sua definicao (corpo) pode ficar a mesma
    executeP :: RContext -> Program  -> Either ErrorMessage RContext
 -}
-executeP :: RContext -> Program  -> RContext
+executeP :: RContext -> Program -> Either ErrorMessage RContext
 executeP context (Prog stm) = execute context stm
    
 
@@ -21,39 +21,73 @@ executeP context (Prog stm) = execute context stm
  e, consequentemente o execute tambem. Assim, todos tipos de comandos 
  serao afetados
 -}
-execute :: RContext -> Stm -> RContext
+execute :: RContext -> Stm -> Either ErrorMessage RContext
 execute context x = case x of
-   SAss id exp -> update context (getStr id) (eval context exp)
-   SBlock [] -> context
-   SBlock (s:stms) -> execute (execute context s) (SBlock stms) 
-   SWhile exp stm -> if ( (eval context exp) /= 0) 
-                      then execute (execute context stm) (SWhile exp stm)
-                      else context
+   SAss id exp -> case eval context exp of 
+                     Right evalVal -> Right (update context (getStr id) evalVal)
+                     Left msg -> Left msg 
+   SBlock [] -> Right context
+   SBlock (s:stms) -> case execute context s of
+                        Right executeVal -> execute executeVal (SBlock stms)
+                        Left msg -> Left msg
+   SWhile exp stm -> case eval context exp of
+                        Right evalVal -> if evalVal /= 0
+                                       then case execute context stm of
+                                          Right executeVal ->  execute executeVal (SWhile exp stm)
+                                          Left msg -> Left msg
+                                       else Right context
+                        Left msg -> Left msg
+   STry (ctxTHead:ctxTTail) (ctxCHead:ctxCTail) (ctxFHead:ctxFTail) -> 
+      case execute context ctxTHead of
+      Right executeVal0 -> case execute executeVal0 (SBlock ctxTTail) of 
+                           Right executeVal1 -> case execute executeVal1 ctxFHead of
+                                                Right executeVal -> execute executeVal (SBlock ctxFTail)
+                                                Left msg -> Left msg
+                           Left msg -> case execute executeVal0 ctxCHead of
+                                       Right executeVal2 -> case execute executeVal2 (SBlock ctxCTail) of 
+                                                            Right executeVal3-> case execute executeVal3 ctxFHead of
+                                                                     Right executeVal4 -> execute executeVal4 (SBlock ctxFTail)
+                                                                     Left msg -> Left msg
+                                                            Left msg -> Left msg
+                                       Left msg -> Left msg
+      Left msg -> case execute context ctxCHead of
+                  Right executeVal -> case execute executeVal (SBlock ctxCTail) of 
+                                       Right executeVal -> case execute executeVal ctxFHead of
+                                                Right executeVal -> execute executeVal (SBlock ctxFTail)
+                                                Left msg -> Left msg
+                                       Left msg -> Left msg
+                  Left msg -> Left msg
 
 
 {- Dica: o tipo de eval deve mudar para
- eval :: RContext -> Exp -> Either ErrorMessage Integer
+   eval :: RContext -> Exp -> Either ErrorMessage Integer
 -}
-eval :: RContext -> Exp -> Integer
+eval :: RContext -> Exp -> Either ErrorMessage Integer
 eval context x = case x of
-    EAdd exp0 exp  -> eval context exp0 + eval context exp
-    ESub exp0 exp  -> eval context exp0 - eval context exp
-    EMul exp0 exp  -> eval context exp0 * eval context exp
-    EDiv exp0 exp  -> eval context exp0 `div` eval context exp
-    EInt n  -> n
-    EVar id  -> lookup context (getStr id)
-{-  algumas dicas abaixo...para voce adaptar o codigo acima
-    EDiv e1 e2 -> case eval context e1 of 
-                    Right ve1 -> case eval context e2 of 
-                                   Right ve2 -> if (ve2 == 0)
-                                                 then Left ("divisao por 0 na expressao: " 
-                                                            ++ show (EDiv e1 e2))
-                                                 else Right (ve1 `div` ve2)
-                                  Left msg -> Left msg  
-                    Left msg -> Left msg  
-    EInt n  ->  Right n 
--}                
-
+   EAdd exp0 exp -> case eval context exp0 of 
+                  Right vexp0 -> case eval context exp of 
+                                 Right vexp -> Right (vexp0 + vexp) 
+                                 Left msg -> Left msg  
+                  Left msg -> Left msg
+   ESub exp0 exp -> case eval context exp0 of 
+                  Right vexp0 -> case eval context exp of 
+                                 Right vexp -> Right (vexp0 - vexp) 
+                                 Left msg -> Left msg  
+                  Left msg -> Left msg
+   EMul exp0 exp -> case eval context exp0 of 
+                  Right vexp0 -> case eval context exp of 
+                                 Right vexp -> Right (vexp0 * vexp) 
+                                 Left msg -> Left msg  
+                  Left msg -> Left msg
+   EDiv exp0 exp -> case eval context exp0 of 
+                  Right vexp0 -> case eval context exp of 
+                                 Right vexp -> if vexp == 0
+                                                then Left "divisao por 0" 
+                                                else Right (vexp0 `div` vexp)
+                                 Left msg -> Left msg  
+                  Left msg -> Left msg
+   EInt n  -> Right n
+   EVar id  -> Right (lookup context (getStr id))
 
 -- Dica: voce nao precisa mudar o codigo a partir daqui
 type RContext = [(String,Integer)]
@@ -69,5 +103,5 @@ lookup ((i,v):cs) s
 update :: RContext -> String -> Integer -> RContext
 update [] s v = [(s,v)]
 update ((i,v):cs) s nv
-  | i == s = (i,nv):cs
-  | otherwise = (i,v) : update cs s nv
+   | i == s = (i,nv):cs
+   | otherwise = (i,v) : update cs s nv
